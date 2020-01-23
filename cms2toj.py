@@ -1,10 +1,10 @@
 import argparse
-import os
 import json
 import logging
+import os
+import re
 import subprocess
 from function import *
-
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s')
@@ -29,7 +29,7 @@ for idx in data:
 
 contest = None
 while contest is None:
-    print('-'*70)
+    print('-' * 70)
     print('請選擇競賽ID')
     print('ID\tName')
     for idx in contestids:
@@ -38,12 +38,12 @@ while contest is None:
     if idx in contestids:
         contest = data[idx]
 
-print('-'*70)
+print('-' * 70)
 print('正在處理 {}'.format(contest['description']))
 print(contest)
 for taskid in contest['tasks']:
     task = data[taskid]
-    print('-'*70)
+    print('-' * 70)
     print(taskid, task['name'], task['title'])
 
     taskpath = os.path.join(outputpath, taskid)
@@ -55,11 +55,13 @@ for taskid in contest['tasks']:
     datasetid = task['active_dataset']
     dataset = data[datasetid]
 
+    datacasemap = {}
     offset = 1
     logging.info('Copying {} testdatas'.format(len(dataset['testcases'])))
     for filename in dataset['testcases']:
         testcaseid = dataset['testcases'][filename]
         testcase = data[testcaseid]
+        datacasemap[testcase['codename']] = offset
         copyfile(
             (inputpath, 'files', testcase['input']),
             (taskpath, 'res/testdata', '{}.in'.format(offset))
@@ -82,13 +84,29 @@ for taskid in contest['tasks']:
     }
     conf['timelimit'] = int(dataset['time_limit'] * 1000)
     conf['memlimit'] = int(dataset['memory_limit'] * 1024)
-    offset = 1
-    for score in dataset['score_type_parameters']:
-        conf['test'].append({
-            'data': list(range(offset, offset + score[1])),
-            'weight': score[0]
+    if isinstance(dataset['score_type_parameters'][0][1], int):
+        # Case 1. See https://cms.readthedocs.io/en/v1.4/Score%20types.html#groupmin
+        offset = 1
+        for score in dataset['score_type_parameters']:
+            conf['test'].append({
+                'data': list(range(offset, offset + score[1])),
+                'weight': score[0]
             })
-        offset += score[1]
+            offset += score[1]
+    elif isinstance(dataset['score_type_parameters'][0][1], str):
+        # Case 2.
+        for score in dataset['score_type_parameters']:
+            test = {
+                'data': [],
+                'weight': score[0]
+            }
+            for codename in datacasemap:
+                if re.search(score[1], codename):
+                    test['data'].append(datacasemap[codename])
+            conf['test'].append(test)
+    else:
+        raise Exception('Bad score_type_parameters type: {}'.format(dataset['score_type_parameters']))
+
     logging.info('Creating config file')
     with open(os.path.join(taskpath, 'conf.json'), 'w') as conffile:
         json.dump(conf, conffile, indent=4)
