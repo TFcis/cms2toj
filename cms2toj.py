@@ -101,7 +101,7 @@ for taskid in contest['tasks']:
                 'weight': score[0]
             }
             for codename in datacasemap:
-                if re.search(score[1], codename):
+                if re.match(score[1], codename):
                     test['data'].append(datacasemap[codename])
             conf['test'].append(test)
     else:
