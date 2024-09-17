@@ -130,7 +130,7 @@ async def main():
                 (taskpath, 'http', 'cont.pdf')
             )
         async def _compress_task(taskpath, outputpath, taskid, task_name, task_title):
-            returncode = run_and_wait_process('tar', *[
+            returncode = await run_and_wait_process('tar', *[
                 '-C',
                 taskpath,
                 '-cJf',
@@ -157,4 +157,3 @@ if __name__ == '__main__':
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(main())
-    asyncio.run(main())
